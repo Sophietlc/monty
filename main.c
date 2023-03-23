@@ -1,74 +1,46 @@
 #include "monty.h"
-
+glo_t glo;
 /**
- * main - entry into interpreter
- * @argc: argc counter
- * @argv: arguments
- * Return: 0 on success
- */
-int main(int argc, char *argv[])
-{
-	int fd, ispush = 0;
-	unsigned int line = 1;
-	ssize_t n_read;
-	char *buffer, *token;
-	stack_t *h = NULL;
+* main - reads a monty file and executes line by line
+* @argc: argument counter
+* @argv: argument vector
+* Return: 0
+*/
 
-	if (argc != 2)
+int main(int argc, char **argv)
+{
+	stack_t *head = NULL;
+	ssize_t lines;
+	int check;
+	size_t buff_size = 0;
+	unsigned int counter = 0;
+
+	glo.line_buff = NULL;
+	glo.bigb = NULL;
+
+	argc_check(argc);
+
+	glo.fp = fopen(argv[1], "r");
+	open_check(argv);
+
+	lines = getline(&glo.line_buff, &buff_size, glo.fp);
+	line_check(lines);
+
+	while (lines >= 0)
 	{
-		printf("USAGE: monty file\n");
-		exit(EXIT_FAILURE);
-	}
-	fd = open(argv[1], O_RDONLY);
-	if (fd == -1)
-	{
-		printf("Error: Can't open file %s\n", argv[1]);
-		exit(EXIT_FAILURE);
-	}
-	buffer = malloc(sizeof(char) * 10000);
-	if (!buffer)
-		return (0);
-	n_read = read(fd, buffer, 10000);
-	if (n_read == -1)
-	{
-		free(buffer);
-		close(fd);
-		exit(EXIT_FAILURE);
-	}
-	token = strtok(buffer, "\n\t\a\r ;:");
-	while (token != NULL)
-	{
-		if (ispush == 1)
+		glo.bigb = NULL;
+		counter++;
+		glo.bigb = parse_line(counter, head);
+		if (glo.bigb == NULL)
 		{
-			push(&h, line, token);
-			ispush = 0;
-			token = strtok(NULL, "\n\t\a\r ;:");
-			line++;
+			lines = getline(&glo.line_buff, &buff_size, glo.fp);
 			continue;
 		}
-		else if (strcmp(token, "push") == 0)
-		{
-			ispush = 1;
-			token = strtok(NULL, "\n\t\a\r ;:");
-			continue;
-		}
-		else
-		{
-			if (get_op_func(token) != 0)
-			{
-				get_op_func(token)(&h, line);
-			}
-			else
-			{
-				free_dlist(&h);
-				printf("L%d: unknown instruction %s\n", line, token);
-				exit(EXIT_FAILURE);
-			}
-		}
-		line++;
-		token = strtok(NULL, "\n\t\a\r ;:");
+		check = get_opcode(&head, counter);
+		op_check(check, counter, head);
+		lines = getline(&glo.line_buff, &buff_size, glo.fp);
 	}
-	free_dlist(&h); free(buffer);
-	close(fd);
+	free_buff();
+	free_stack(head);
 	return (0);
 }
